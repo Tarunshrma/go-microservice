@@ -1,28 +1,17 @@
 package main
 
 import (
-	"fmt"
-	"io"
+	"go-microservice/handler"
 	"log"
 	"net/http"
+	"os"
 )
 
 func main() {
-	http.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
-		d, err := io.ReadAll(request.Body)
+	l := log.New(os.Stdout, "product-api", log.LstdFlags)
+	hh := handler.NewHello(l)
 
-		if err != nil {
-			http.Error(writer, "Some Error...", http.StatusBadRequest)
-			return
-		}
-
-		log.Println("Hello Tarun")
-		fmt.Fprintf(writer, "%s", d)
-	})
-
-	http.HandleFunc("/sanchit", func(writer http.ResponseWriter, request *http.Request) {
-		log.Println("Hello Sanchit")
-	})
-
-	http.ListenAndServe(":9090", nil)
+	sm := http.NewServeMux()
+	sm.Handle("/", hh)
+	http.ListenAndServe(":9090", sm)
 }
