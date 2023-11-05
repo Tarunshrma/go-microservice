@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"go-microservice/data"
 	"log"
 	"net/http"
@@ -16,10 +15,18 @@ func NewProducts(l *log.Logger) *Product {
 }
 
 func (p *Product) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
+	if request.Method == http.MethodGet {
+		p.getProducts(writer, request)
+		return
+	}
+
+	writer.WriteHeader(http.StatusMethodNotAllowed)
+}
+
+func (p *Product) getProducts(writer http.ResponseWriter, request *http.Request) {
 	lp := data.GetProducts()
-	res, err := json.Marshal(lp)
+	err := lp.ToJson(writer)
 	if err != nil {
 		http.Error(writer, "Error fetching products", http.StatusInternalServerError)
 	}
-	writer.Write(res)
 }
