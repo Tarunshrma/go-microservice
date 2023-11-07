@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	mux2 "github.com/gorilla/mux"
 	"go-microservice/handler"
 	"log"
 	"net/http"
@@ -12,15 +13,18 @@ import (
 )
 
 func main() {
-	l := log.New(os.Stdout, "product-api", log.LstdFlags)
+	l := log.New(os.Stdout, "product-api:", log.LstdFlags)
 	ph := handler.NewProducts(l)
 
-	sm := http.NewServeMux()
-	sm.Handle("/", ph)
+	//sm := http.NewServeMux()
+	//sm.Handle("/", ph)
+	mux := mux2.NewRouter()
+	getRouter := mux.Methods(http.MethodGet).Subrouter()
+	getRouter.HandleFunc("/", ph.GetProducts)
 
 	s := &http.Server{
 		Addr:         ":9090",
-		Handler:      sm,
+		Handler:      mux,
 		ReadTimeout:  1 * time.Second,
 		WriteTimeout: 1 * time.Second,
 		IdleTimeout:  120 * time.Second,
