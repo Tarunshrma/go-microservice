@@ -3,7 +3,6 @@ package handler
 import (
 	"context"
 	"errors"
-	"fmt"
 	"github.com/gorilla/mux"
 	"go-microservice/data"
 	"log"
@@ -13,15 +12,26 @@ import (
 
 type Products struct {
 	l *log.Logger
+	v *data.Validation
 }
 
-func NewProducts(l *log.Logger) *Products {
-	return &Products{l}
+func NewProducts(l *log.Logger, v *data.Validation) *Products {
+	return &Products{l, v}
+}
+
+// GenericError is a generic error message returned by a server
+type GenericError struct {
+	Message string `json:"message"`
+}
+
+// ValidationError is a collection of validation error messages
+type ValidationError struct {
+	Messages []string `json:"messages"`
 }
 
 func (p *Products) GetProducts(writer http.ResponseWriter, request *http.Request) {
 	lp := data.GetProducts()
-	err := lp.ToJson(writer)
+	err := data.ToJSON(lp, writer)
 	if err != nil {
 		http.Error(writer, "Error fetching products", http.StatusInternalServerError)
 	}
@@ -64,20 +74,20 @@ func (p *Products) MiddlewareValidateProduct(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		prod := &data.Product{}
 
-		err := prod.FromJSON(r)
+		err := data.FromJSON(prod, r.Body)
 		if err != nil {
 			p.l.Println("[ERROR] deserializing product", err)
 			http.Error(rw, "Error reading product", http.StatusBadRequest)
 			return
 		}
 
-		err = prod.Validate()
-		if err != nil {
-			p.l.Println("[ERROR] Validating product", err)
-			http.Error(rw,
-				fmt.Sprintf("Error validating product %s", err),
-				http.StatusBadRequest,
-			)
+		errs := p.v.Validate(prod)
+		if len(errs) != 0 {
+			p.l.Println("[ERROR] validating product", errs)
+
+			// return the validation messages as an array
+			rw.WriteHeader(http.StatusUnprocessableEntity)
+			data.ToJSON(&ValidationError{Messages: errs.Errors()}, rw)
 			return
 		}
 

@@ -1,12 +1,7 @@
 package data
 
 import (
-	"encoding/json"
 	"fmt"
-	"github.com/go-playground/validator/v10"
-	"io"
-	"net/http"
-	"regexp"
 	"time"
 )
 
@@ -28,34 +23,34 @@ func GetProducts() Products {
 	return productList
 }
 
-func (p *Products) ToJson(w io.Writer) error {
-	e := json.NewEncoder(w)
-	return e.Encode(p)
-}
+//func (p *Products) ToJson(w io.Writer) error {
+//	e := json.NewEncoder(w)
+//	return e.Encode(p)
+//}
 
-func (p *Product) FromJSON(r *http.Request) error {
-	d := json.NewDecoder(r.Body)
-	return d.Decode(p)
-}
+//func (p *Product) FromJSON(r *http.Request) error {
+//	d := json.NewDecoder(r.Body)
+//	return d.Decode(p)
+//}
 
-func (p *Product) Validate() error {
-	validate := validator.New()
-	validate.RegisterValidation("sku", validateSKU)
+//func (p *Product) Validate() error {
+//	validate := validator.New()
+//	validate.RegisterValidation("sku", validateSKU)
+//
+//	return validate.Struct(p)
+//}
 
-	return validate.Struct(p)
-}
-
-func validateSKU(fl validator.FieldLevel) bool {
-	// sku is of format abc-absd-dfsdf
-	re := regexp.MustCompile(`[a-z]+-[a-z]+-[a-z]+`)
-	matches := re.FindAllString(fl.Field().String(), -1)
-
-	if len(matches) != 1 {
-		return false
-	}
-
-	return true
-}
+//func validateSKU(fl validator.FieldLevel) bool {
+//	// sku is of format abc-absd-dfsdf
+//	re := regexp.MustCompile(`[a-z]+-[a-z]+-[a-z]+`)
+//	matches := re.FindAllString(fl.Field().String(), -1)
+//
+//	if len(matches) != 1 {
+//		return false
+//	}
+//
+//	return true
+//}
 
 func AddProduct(p *Product) {
 	p.ID = getNextID()
@@ -74,7 +69,19 @@ func UpdateProduct(id int, p *Product) error {
 	return nil
 }
 
-var ErrProductNotFound = fmt.Errorf("Product not found")
+func DeleteProduct(id int) error {
+	_, pos, err := findProduct(id)
+	if err != nil {
+		return err
+	}
+
+	//productList = append(productList[:pos], productList[pos+1])
+	productList = append(productList[:pos], productList[pos+1:]...)
+
+	return nil
+}
+
+var ErrProductNotFound = fmt.Errorf("product not found")
 
 func findProduct(id int) (*Product, int, error) {
 	for i, p := range productList {

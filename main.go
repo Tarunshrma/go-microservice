@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	mux2 "github.com/gorilla/mux"
+	"go-microservice/data"
 	"go-microservice/handler"
 	"log"
 	"net/http"
@@ -14,7 +15,9 @@ import (
 
 func main() {
 	l := log.New(os.Stdout, "product-api:", log.LstdFlags)
-	ph := handler.NewProducts(l)
+	v := data.NewValidation()
+
+	ph := handler.NewProducts(l, v)
 
 	mux := mux2.NewRouter()
 
