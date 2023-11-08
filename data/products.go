@@ -23,35 +23,6 @@ func GetProducts() Products {
 	return productList
 }
 
-//func (p *Products) ToJson(w io.Writer) error {
-//	e := json.NewEncoder(w)
-//	return e.Encode(p)
-//}
-
-//func (p *Product) FromJSON(r *http.Request) error {
-//	d := json.NewDecoder(r.Body)
-//	return d.Decode(p)
-//}
-
-//func (p *Product) Validate() error {
-//	validate := validator.New()
-//	validate.RegisterValidation("sku", validateSKU)
-//
-//	return validate.Struct(p)
-//}
-
-//func validateSKU(fl validator.FieldLevel) bool {
-//	// sku is of format abc-absd-dfsdf
-//	re := regexp.MustCompile(`[a-z]+-[a-z]+-[a-z]+`)
-//	matches := re.FindAllString(fl.Field().String(), -1)
-//
-//	if len(matches) != 1 {
-//		return false
-//	}
-//
-//	return true
-//}
-
 func AddProduct(p *Product) {
 	p.ID = getNextID()
 	productList = append(productList, p)
