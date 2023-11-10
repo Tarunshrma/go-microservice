@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"github.com/go-openapi/runtime/middleware"
+	gohandlers "github.com/gorilla/handlers"
 	mux2 "github.com/gorilla/mux"
 	"go-microservice/data"
 	"go-microservice/handler"
@@ -40,9 +41,12 @@ func main() {
 	getRouter.Handle("/docs", sh)
 	getRouter.Handle("/swagger.yaml", http.FileServer(http.Dir("./")))
 
+	// CORS
+	ch := gohandlers.CORS(gohandlers.AllowedOrigins([]string{"*"}))
+
 	s := &http.Server{
 		Addr:         ":9090",
-		Handler:      mux,
+		Handler:      ch(mux),
 		ReadTimeout:  1 * time.Second,
 		WriteTimeout: 1 * time.Second,
 		IdleTimeout:  120 * time.Second,
