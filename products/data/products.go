@@ -96,6 +96,18 @@ func getNextID() int {
 	return p.ID + 1
 }
 
+// GetProductByID returns a single product which matches the id from the
+// database.
+// If a product is not found this function returns a ProductNotFound error
+func GetProductByID(id int) (*Product, error) {
+	p, id, _ := findProduct(id)
+	if id == -1 {
+		return nil, ErrProductNotFound
+	}
+
+	return p, nil
+}
+
 var productList = Products{
 	&Product{
 		ID:          1,

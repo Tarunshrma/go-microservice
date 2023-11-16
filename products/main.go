@@ -7,6 +7,8 @@ import (
 	mux2 "github.com/gorilla/mux"
 	"go-microservice/data"
 	"go-microservice/handler"
+	"google.golang.org/grpc"
+	"grpc-go/protos/currency/protos"
 	"log"
 	"net/http"
 	"os"
@@ -20,12 +22,23 @@ func main() {
 	l := log.New(os.Stdout, "product-api:", log.LstdFlags)
 	v := data.NewValidation()
 
-	ph := handler.NewProducts(l, v)
+	conn, err := grpc.Dial("localhost:9092", grpc.WithInsecure())
+	if err != nil {
+		panic(err)
+	}
+
+	defer conn.Close()
+
+	// create client
+	cc := protos.NewCurrencyClient(conn)
+
+	ph := handler.NewProducts(l, v, cc)
 
 	mux := mux2.NewRouter()
 
 	getRouter := mux.Methods(http.MethodGet).Subrouter()
 	getRouter.HandleFunc("/", ph.GetProducts)
+	getRouter.HandleFunc("/products/{id:[0-9]+}", ph.GetProduct)
 
 	putRouter := mux.Methods(http.MethodPut).Subrouter()
 	putRouter.HandleFunc("/{id:[0-9]+}", ph.UpdateProducts)
