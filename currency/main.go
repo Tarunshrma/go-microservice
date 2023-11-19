@@ -4,6 +4,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
+	"grpc-go/data"
 	"grpc-go/protos/currency/protos"
 	"net"
 	"os"
@@ -14,8 +15,14 @@ import (
 func main() {
 	log := hclog.Default()
 
+	r, err := data.NewRate(log)
+
+	if err != nil {
+		log.Error("Error initialing rates", "Error", err)
+	}
+
 	// create an instance of the Currency server
-	cs := server.NewCurrency(log)
+	cs := server.NewCurrency(log, r)
 
 	// create a new gRPC server, use WithInsecure to allow http connections
 	gs := grpc.NewServer()
