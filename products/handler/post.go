@@ -13,9 +13,9 @@ import (
 //  422: errorValidation
 //  501: errorResponse
 
-// Create handles POST requests to add new products
+// AddProduct Create handles POST requests to add new products
 func (p *Products) AddProduct(writer http.ResponseWriter, request *http.Request) {
-	p.l.Println("Handle POST Add Product")
+	p.l.Debug("Handle POST Add Product")
 	prod := request.Context().Value(KeyProduct{}).(*data.Product)
-	data.AddProduct(prod)
+	p.productDB.AddProduct(prod)
 }

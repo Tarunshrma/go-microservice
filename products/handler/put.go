@@ -16,7 +16,7 @@ import (
 //  404: errorResponse
 //  422: errorValidation
 
-// Update handles PUT requests to update products
+// UpdateProducts Update handles PUT requests to update products
 func (p *Products) UpdateProducts(rw http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id, e := strconv.Atoi(vars["id"])
@@ -26,11 +26,11 @@ func (p *Products) UpdateProducts(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	p.l.Println("Handle PUT Product")
+	p.l.Debug("Handle PUT Product")
 
 	prod := r.Context().Value(KeyProduct{}).(*data.Product)
 
-	err := data.UpdateProduct(id, prod)
+	err := p.productDB.UpdateProduct(id, prod)
 	if errors.Is(err, data.ErrProductNotFound) {
 		http.Error(rw, "Product not found", http.StatusNotFound)
 		return

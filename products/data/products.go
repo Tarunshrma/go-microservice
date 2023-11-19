@@ -1,7 +1,10 @@
 package data
 
 import (
+	"context"
 	"fmt"
+	"github.com/hashicorp/go-hclog"
+	"grpc-go/protos/currency/protos"
 	"time"
 )
 
@@ -30,7 +33,7 @@ type Product struct {
 	//
 	// required: true
 	// min: 0.01
-	Price float32 `json:"price" validate:"gt=0"`
+	Price float64 `json:"price" validate:"gt=0"`
 
 	// the SKU for the product
 	//
@@ -46,16 +49,55 @@ type Product struct {
 // Products is a collection of Product
 type Products []*Product
 
-func GetProducts() Products {
-	return productList
+type ProductDB struct {
+	log      hclog.Logger
+	currency protos.CurrencyClient
 }
 
-func AddProduct(p *Product) {
+func NewProductDB(l hclog.Logger, cc protos.CurrencyClient) *ProductDB {
+	return &ProductDB{l, cc}
+}
+
+func (pDB *ProductDB) GetProducts(currency string) (Products, error) {
+
+	if currency == "" {
+		return productList, nil
+	}
+
+	rate, err := pDB.getRate(currency)
+	if err != nil {
+		pDB.log.Error("Unable to get rate", "currency", currency, "error", err)
+		return nil, err
+	}
+
+	pr := Products{}
+	for _, p := range productList {
+		np := *p
+		np.Price = np.Price * rate
+		pr = append(pr, &np)
+	}
+
+	return pr, nil
+
+}
+
+func (pDB *ProductDB) getRate(currency string) (float64, error) {
+	// get exchange rate
+	rr := &protos.RateRequest{
+		Base:        protos.Currencies(protos.Currencies_value["EUR"]),
+		Destination: protos.Currencies(protos.Currencies_value[currency]),
+	}
+
+	resp, err := pDB.currency.GetRate(context.Background(), rr)
+	return resp.Rate, err
+}
+
+func (pDB *ProductDB) AddProduct(p *Product) {
 	p.ID = getNextID()
 	productList = append(productList, p)
 }
 
-func UpdateProduct(id int, p *Product) error {
+func (pDB *ProductDB) UpdateProduct(id int, p *Product) error {
 	_, pos, err := findProduct(id)
 	if err != nil {
 		return err
@@ -99,13 +141,26 @@ func getNextID() int {
 // GetProductByID returns a single product which matches the id from the
 // database.
 // If a product is not found this function returns a ProductNotFound error
-func GetProductByID(id int) (*Product, error) {
+func (pDB *ProductDB) GetProductByID(id int, currency string) (*Product, error) {
 	p, id, _ := findProduct(id)
 	if id == -1 {
 		return nil, ErrProductNotFound
 	}
 
-	return p, nil
+	if currency == "" {
+		return p, nil
+	}
+
+	rate, err := pDB.getRate(currency)
+	if err != nil {
+		pDB.log.Error("Unable to get rate", "currency", currency, "error", err)
+		return nil, err
+	}
+
+	np := *p
+	np.Price = np.Price * rate
+
+	return &np, nil
 }
 
 var productList = Products{

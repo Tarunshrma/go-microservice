@@ -5,6 +5,7 @@ import (
 	"github.com/go-openapi/runtime/middleware"
 	gohandlers "github.com/gorilla/handlers"
 	mux2 "github.com/gorilla/mux"
+	"github.com/hashicorp/go-hclog"
 	"go-microservice/data"
 	"go-microservice/handler"
 	"google.golang.org/grpc"
@@ -19,7 +20,7 @@ import (
 
 func main() {
 
-	l := log.New(os.Stdout, "product-api:", log.LstdFlags)
+	l := hclog.Default()
 	v := data.NewValidation()
 
 	conn, err := grpc.Dial("localhost:9092", grpc.WithInsecure())
@@ -32,20 +33,26 @@ func main() {
 	// create client
 	cc := protos.NewCurrencyClient(conn)
 
-	ph := handler.NewProducts(l, v, cc)
+	//Create productdb instance
+	pdb := data.NewProductDB(l, cc)
+
+	ph := handler.NewProducts(l, v, pdb)
 
 	mux := mux2.NewRouter()
 
 	getRouter := mux.Methods(http.MethodGet).Subrouter()
-	getRouter.HandleFunc("/", ph.GetProducts)
+	getRouter.HandleFunc("/products", ph.GetProducts)
+	getRouter.HandleFunc("/products", ph.GetProducts).Queries("currency", "{[A-Z]{3}}")
+
 	getRouter.HandleFunc("/products/{id:[0-9]+}", ph.GetProduct)
+	getRouter.HandleFunc("/products/{id:[0-9]+}", ph.GetProduct).Queries("currency", "{[A-Z]{3}}")
 
 	putRouter := mux.Methods(http.MethodPut).Subrouter()
-	putRouter.HandleFunc("/{id:[0-9]+}", ph.UpdateProducts)
+	putRouter.HandleFunc("products/{id:[0-9]+}", ph.UpdateProducts)
 	putRouter.Use(ph.MiddlewareValidateProduct)
 
 	postRouter := mux.Methods(http.MethodPost).Subrouter()
-	postRouter.HandleFunc("/", ph.AddProduct)
+	postRouter.HandleFunc("products/", ph.AddProduct)
 	postRouter.Use(ph.MiddlewareValidateProduct)
 
 	// handler for documentation
@@ -60,6 +67,7 @@ func main() {
 
 	s := &http.Server{
 		Addr:         ":9090",
+		ErrorLog:     l.StandardLogger(&hclog.StandardLoggerOptions{}), // set the logger for the server
 		Handler:      ch(mux),
 		ReadTimeout:  1 * time.Second,
 		WriteTimeout: 1 * time.Second,
@@ -71,10 +79,10 @@ func main() {
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 
 	go func() {
-		l.Println("Starting server on port 9090")
+		l.Debug("Starting server on port 9090")
 		err := s.ListenAndServe()
 		if err != nil {
-			l.Fatal(err)
+			l.Error("Error: ", err)
 		}
 	}()
 

@@ -1,21 +1,30 @@
 package handler
 
 import (
-	"context"
 	"go-microservice/data"
-	"grpc-go/protos/currency/protos"
 	"net/http"
 )
 
-// swagger:route GET /products products listProducts
+// swagger:route GET /products listProducts
 // Return a list of products from the database
 // responses:
 //	200: productsResponse
 
-// ListAll handles GET requests and returns all current products
+// GetProducts ListAll handles GET requests and returns all current products
 func (p *Products) GetProducts(writer http.ResponseWriter, request *http.Request) {
-	lp := data.GetProducts()
-	err := data.ToJSON(lp, writer)
+	p.l.Debug("Get all products")
+	writer.Header().Add("Content-Type", "application/json")
+
+	cur := request.URL.Query().Get("currency")
+
+	lp, err := p.productDB.GetProducts(cur)
+	if err != nil {
+		writer.WriteHeader(http.StatusInternalServerError)
+		data.ToJSON(&GenericError{Message: err.Error()}, writer)
+		return
+	}
+
+	err = data.ToJSON(lp, writer)
 	if err != nil {
 		http.Error(writer, "Error fetching products", http.StatusInternalServerError)
 	}
@@ -28,52 +37,36 @@ func (p *Products) GetProducts(writer http.ResponseWriter, request *http.Request
 //	404: errorResponse
 
 // GetProduct handles GET requests
-func (p *Products) GetProduct(rw http.ResponseWriter, r *http.Request) {
+func (p *Products) GetProduct(rw http.ResponseWriter, request *http.Request) {
 	rw.Header().Add("Content-Type", "application/json")
 
-	id := getProductID(r)
+	id := getProductID(request)
 
-	p.l.Println("[DEBUG] get record id", id)
+	p.l.Debug("Get record id", id)
 
-	prod, err := data.GetProductByID(id)
+	cur := request.URL.Query().Get("currency")
+	prod, err := p.productDB.GetProductByID(id, cur)
 
 	switch err {
 	case nil:
 
 	case data.ErrProductNotFound:
-		p.l.Println("[ERROR] fetching product", err)
+		p.l.Error("fetching product", err)
 
 		rw.WriteHeader(http.StatusNotFound)
 		data.ToJSON(&GenericError{Message: err.Error()}, rw)
 		return
 	default:
-		p.l.Println("[ERROR] fetching product", err)
+		p.l.Error("fetching product", err)
 
 		rw.WriteHeader(http.StatusInternalServerError)
 		data.ToJSON(&GenericError{Message: err.Error()}, rw)
 		return
 	}
 
-	// get exchange rate
-	rr := &protos.RateRequest{
-		Base:        protos.Currencies(protos.Currencies_value["EUR"]),
-		Destination: protos.Currencies(protos.Currencies_value["GBP"]),
-	}
-
-	resp, err := p.cc.GetRate(context.Background(), rr)
-	if err != nil {
-		p.l.Println("[Error] error getting new rate", err)
-		data.ToJSON(&GenericError{Message: err.Error()}, rw)
-		return
-	}
-
-	p.l.Printf("Resp %#v", resp)
-
-	prod.Price = prod.Price * resp.Rate
-
 	err = data.ToJSON(prod, rw)
 	if err != nil {
 		// we should never be here but log the error just incase
-		p.l.Println("[ERROR] serializing product", err)
+		p.l.Error("serializing product", err)
 	}
 }

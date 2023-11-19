@@ -2,21 +2,20 @@ package handler
 
 import (
 	"github.com/gorilla/mux"
+	"github.com/hashicorp/go-hclog"
 	"go-microservice/data"
-	"grpc-go/protos/currency/protos"
-	"log"
 	"net/http"
 	"strconv"
 )
 
 type Products struct {
-	l  *log.Logger
-	v  *data.Validation
-	cc protos.CurrencyClient
+	l         hclog.Logger
+	v         *data.Validation
+	productDB *data.ProductDB
 }
 
-func NewProducts(l *log.Logger, v *data.Validation, cc protos.CurrencyClient) *Products {
-	return &Products{l, v, cc}
+func NewProducts(l hclog.Logger, v *data.Validation, pdb *data.ProductDB) *Products {
+	return &Products{l, v, pdb}
 }
 
 // GenericError is a generic error message returned by a server
