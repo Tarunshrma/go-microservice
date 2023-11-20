@@ -19,3 +19,6 @@ similary  `grpcurl --plaintext localhost:9092 list Currency` command returns the
 Use below command in terminal to test the GetRate function on grpc service Currency
 
 **grpcurl --plaintext -d '{"Base":"USD", "Destination":"INR"}' localhost:9092 Currency.GetRate**
+
+This command is used to query the stream data
+**grpcurl --plaintext -msg-template -d @ localhost:9092 Currency.SubscribeRates**
