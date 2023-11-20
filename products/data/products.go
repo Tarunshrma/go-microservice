@@ -52,10 +52,37 @@ type Products []*Product
 type ProductDB struct {
 	log      hclog.Logger
 	currency protos.CurrencyClient
+	rates    map[string]float64
+	client   protos.Currency_SubscribeRatesClient
 }
 
 func NewProductDB(l hclog.Logger, cc protos.CurrencyClient) *ProductDB {
-	return &ProductDB{l, cc}
+	pb := &ProductDB{l, cc, make(map[string]float64), nil}
+
+	go pb.handleUpdates()
+
+	return pb
+}
+
+func (p *ProductDB) handleUpdates() {
+	sub, err := p.currency.SubscribeRates(context.Background())
+	if err != nil {
+		p.log.Error("Unable to subscribe for rates", "error", err)
+	}
+
+	p.client = sub
+
+	for {
+		rr, err := sub.Recv()
+		p.log.Info("Recieved updated rate from server", "dest", rr.GetDestination().String())
+
+		if err != nil {
+			p.log.Error("Error receiving message", "error", err)
+			return
+		}
+
+		p.rates[rr.Destination.String()] = rr.Rate
+	}
 }
 
 func (pDB *ProductDB) GetProducts(currency string) (Products, error) {
@@ -82,6 +109,11 @@ func (pDB *ProductDB) GetProducts(currency string) (Products, error) {
 }
 
 func (pDB *ProductDB) getRate(currency string) (float64, error) {
+
+	if r, ok := pDB.rates[currency]; ok {
+		return r, nil
+	}
+
 	// get exchange rate
 	rr := &protos.RateRequest{
 		Base:        protos.Currencies(protos.Currencies_value["EUR"]),
@@ -89,6 +121,11 @@ func (pDB *ProductDB) getRate(currency string) (float64, error) {
 	}
 
 	resp, err := pDB.currency.GetRate(context.Background(), rr)
+	pDB.rates[currency] = resp.Rate // update cache
+
+	// subscribe for updates
+	pDB.client.Send(rr)
+
 	return resp.Rate, err
 }
 
